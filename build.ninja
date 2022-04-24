@@ -1,0 +1,34 @@
+prefix = m68k-amiga-elf
+cflags = -m68000 -nostdlib -O3 -fno-exceptions -flto -Wall
+oflags = -flinker-output=nolto-rel -Wl,-r,-Tamiga.ld
+lflags = -bamigahunk -hunkattr CHIP=2 -nostdlib -s -gc-all
+
+name = example
+
+kickstart = # Path to Kickstart ROM for emulator
+
+rule compile
+    command = ${prefix}-gcc $cflags -c -o $out $in
+
+rule link_objects
+    command = ${prefix}-gcc $cflags $oflags -o $out $in
+
+rule elf_to_hunk
+    command = vlink -bamigahunk -r -d -o$out $in
+
+rule link_exe
+    command = vlink $lflags -o$out $in
+
+rule fsuae
+    command = fs-uae --hard_drive_0=. --kickstart_file=$kickstart --floppy_drive_volume=0
+    pool = console
+
+build bin/main.elf: compile src/main.c
+
+build bin/$name.elf: link_objects bin/main.elf
+build bin/$name.hunk: elf_to_hunk bin/$name.elf
+build bin/$name.exe: link_exe bin/$name.hunk
+
+build emulator: fsuae
+
+default bin/$name.exe
